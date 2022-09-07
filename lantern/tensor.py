@@ -45,24 +45,7 @@ class Tensor():
                     other.grad += other._mygrad
             out._backward = _backward    
         return out
-
-    def __div__(self, other):
-        if not isinstance(other, (Tensor)):
-            other = Tensor(other)
-        
-        if self.requires_grad or other.requires_grad:
-            out.requires_grad = True
-            out._children = [self, other]
-            def _backward():
-                if self.requires_grad:
-                    self._mygrad = other.data * out._mygrad
-                    self.grad += self._mygrad
-                if other.requires_grad:
-                    other._mygrad = self.data * out._mygrad
-                    other.grad += other._mygrad
-            out._backward = _backward    
-        return out 
-
+ 
     def __pow__(self, other):
         if not isinstance(other, (Tensor)):
             other = Tensor(other)
@@ -80,7 +63,28 @@ class Tensor():
             out._backward = _backward    
         return out    
 
-    def relu(self):
+    def matmul(self, other):
+        if not isinstance(other, (Tensor)):
+            raise TypeError("matmul(): argument 'input' (position 2) must be Tensor")
+        try:
+            out_err = np.matmul(self.data, other.data)
+        except ValueError:
+            raise ValueError(f'shapes {self.data.shape} and {other.data.shape} not aligned')
+        out = Tensor(np.matmul(self.data, other.data))
+        if self.requires_grad or other.requires_grad:
+            out.requires_grad = True
+            out._children = [self, other]
+            def _backward():
+                if self.requires_grad:
+                    self._mygrad = np.matmul(out._mygrad, other.data.T)
+                    self.grad += self._mygrad
+                if other.requires_grad:
+                    other._mygrad = np.matmul(self.data.T, out._mygrad)
+                    other.grad += other._mygrad
+            out._backward = _backward
+        return out
+
+    def relu(self): 
         data = np.where(self.data > 0, self.data, 0.0)
         out = Tensor(data, [self], requires_grad=self.requires_grad)
         def _backward():
